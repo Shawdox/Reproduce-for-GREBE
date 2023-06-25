@@ -1,0 +1,10 @@
+ATTR_RECORD
+MFT_RECORD
+STANDARD_INFORMATION
+_ntfs_inode
+block_device
+file_system_type
+ntfs_attr
+ntfs_attr_search_ctx
+ntfs_name
+ntfs_volume

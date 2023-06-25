@@ -1,0 +1,4 @@
+hci_conn
+hci_conn_hash
+hci_dev
+vhci_data

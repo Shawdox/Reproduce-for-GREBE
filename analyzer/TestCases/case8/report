@@ -1,0 +1,89 @@
+==================================================================
+BUG: KASAN: use-after-free in hci_conn_del+0x64e/0x6a0 net/bluetooth/hci_conn.c:630
+Write of size 8 at addr ffff888095178940 by task syz-executor.4/6870
+
+CPU: 1 PID: 6870 Comm: syz-executor.4 Not tainted 5.8.0-syzkaller #0
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+Call Trace:
+ __dump_stack lib/dump_stack.c:77 [inline]
+ dump_stack+0x18f/0x20d lib/dump_stack.c:118
+ print_address_description.constprop.0.cold+0xae/0x436 mm/kasan/report.c:383
+ __kasan_report mm/kasan/report.c:513 [inline]
+ kasan_report.cold+0x1f/0x37 mm/kasan/report.c:530
+ hci_conn_del+0x64e/0x6a0 net/bluetooth/hci_conn.c:630
+ hci_conn_hash_flush+0x189/0x220 net/bluetooth/hci_conn.c:1558
+ hci_dev_do_close+0x5c6/0x1080 net/bluetooth/hci_core.c:1770
+ hci_unregister_dev+0x1bd/0xe30 net/bluetooth/hci_core.c:3790
+ vhci_release+0x70/0xe0 drivers/bluetooth/hci_vhci.c:340
+ __fput+0x285/0x920 fs/file_table.c:281
+ task_work_run+0xdd/0x190 kernel/task_work.c:135
+ exit_task_work include/linux/task_work.h:25 [inline]
+ do_exit+0xb7d/0x29f0 kernel/exit.c:806
+ do_group_exit+0x125/0x310 kernel/exit.c:903
+ __do_sys_exit_group kernel/exit.c:914 [inline]
+ __se_sys_exit_group kernel/exit.c:912 [inline]
+ __x64_sys_exit_group+0x3a/0x50 kernel/exit.c:912
+ do_syscall_64+0x2d/0x70 arch/x86/entry/common.c:46
+ entry_SYSCALL_64_after_hwframe+0x44/0xa9
+RIP: 0033:0x45ce79
+Code: Bad RIP value.
+RSP: 002b:00007ffdb27de548 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
+RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 000000000045ce79
+RDX: 00000000004168d1 RSI: 00000000016a85f0 RDI: 0000000000000043
+RBP: 00000000004c2b1b R08: 000000000000000b R09: 0000000000000000
+R10: 0000000002bb8940 R11: 0000000000000246 R12: 000000000000000e
+R13: 00007ffdb27de690 R14: 000000000009ed3c R15: 00007ffdb27de6a0
+
+Allocated by task 3902:
+ save_stack+0x1b/0x40 mm/kasan/common.c:48
+ set_track mm/kasan/common.c:56 [inline]
+ __kasan_kmalloc.constprop.0+0xc2/0xd0 mm/kasan/common.c:494
+ slab_post_alloc_hook mm/slab.h:586 [inline]
+ slab_alloc mm/slab.c:3320 [inline]
+ kmem_cache_alloc+0x12c/0x3b0 mm/slab.c:3484
+ getname_flags.part.0+0x50/0x4f0 fs/namei.c:138
+ getname_flags include/linux/audit.h:320 [inline]
+ getname+0x8e/0xd0 fs/namei.c:209
+ do_sys_openat2+0xf5/0x420 fs/open.c:1168
+ do_sys_open fs/open.c:1190 [inline]
+ __do_sys_open fs/open.c:1198 [inline]
+ __se_sys_open fs/open.c:1194 [inline]
+ __x64_sys_open+0x119/0x1c0 fs/open.c:1194
+ do_syscall_64+0x2d/0x70 arch/x86/entry/common.c:46
+ entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+Freed by task 3902:
+ save_stack+0x1b/0x40 mm/kasan/common.c:48
+ set_track mm/kasan/common.c:56 [inline]
+ kasan_set_free_info mm/kasan/common.c:316 [inline]
+ __kasan_slab_free+0xf5/0x140 mm/kasan/common.c:455
+ __cache_free mm/slab.c:3426 [inline]
+ kmem_cache_free+0x7f/0x310 mm/slab.c:3694
+ putname+0xe1/0x120 fs/namei.c:259
+ do_sys_openat2+0x153/0x420 fs/open.c:1183
+ do_sys_open fs/open.c:1190 [inline]
+ __do_sys_open fs/open.c:1198 [inline]
+ __se_sys_open fs/open.c:1194 [inline]
+ __x64_sys_open+0x119/0x1c0 fs/open.c:1194
+ do_syscall_64+0x2d/0x70 arch/x86/entry/common.c:46
+ entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+The buggy address belongs to the object at ffff888095178840
+ which belongs to the cache names_cache of size 4096
+The buggy address is located 256 bytes inside of
+ 4096-byte region [ffff888095178840, ffff888095179840)
+The buggy address belongs to the page:
+page:ffffea0002545e00 refcount:1 mapcount:0 mapping:0000000000000000 index:0x0 head:ffffea0002545e00 order:1 compound_mapcount:0
+flags: 0xfffe0000010200(slab|head)
+raw: 00fffe0000010200 ffffea0002a02888 ffffea0002571c08 ffff88821bc51380
+raw: 0000000000000000 ffff888095178840 0000000100000001 0000000000000000
+page dumped because: kasan: bad access detected
+
+Memory state around the buggy address:
+ ffff888095178800: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
+ ffff888095178880: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>ffff888095178900: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+                                           ^
+ ffff888095178980: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+ ffff888095178a00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+==================================================================

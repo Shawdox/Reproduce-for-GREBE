@@ -1,0 +1,3 @@
+--2023-06-03 14:49:29--  https://syzkaller.appspot.com/text?tag=KernelConfig
+Resolving syzkaller.appspot.com (syzkaller.appspot.com)... failed: Unknown error.
+wget: unable to resolve host address ‘syzkaller.appspot.com’

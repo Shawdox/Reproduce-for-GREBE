@@ -1,0 +1,2 @@
+https://syzkaller.appspot.com/bug?extid=7b1677fecb5976b0a099
+KASAN: use-after-free Write in hci_conn_del

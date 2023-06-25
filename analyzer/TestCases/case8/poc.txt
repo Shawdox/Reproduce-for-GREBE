@@ -1,0 +1,17 @@
+# https://syzkaller.appspot.com/bug?id=8b21b6900711ddc7beb13d7d4f76fa44b6e8d315
+# See https://goo.gl/kgGztJ for information about syzkaller reproducers.
+#{"threaded":true,"collide":true,"repeat":true,"procs":6,"sandbox":"none","fault_call":-1,"tun":true,"netdev":true,"resetnet":true,"cgroups":true,"binfmt_misc":true,"close_fds":true,"vhci":true,"tmpdir":true,"segv":true}
+r0 = syz_init_net_socket$bt_l2cap(0x1f, 0x3, 0x0)
+setsockopt$SO_ATTACH_FILTER(r0, 0x1, 0x1a, 0x0, 0x0)
+setsockopt$SO_TIMESTAMP(0xffffffffffffffff, 0x1, 0x40, 0x0, 0x0)
+ioctl$sock_SIOCGIFVLAN_SET_VLAN_NAME_TYPE_CMD(0xffffffffffffffff, 0x8982, 0x0)
+ioctl$sock_SIOCETHTOOL(0xffffffffffffffff, 0x89f1, 0x0)
+ioctl$F2FS_IOC_GET_COMPRESS_BLOCKS(0xffffffffffffffff, 0x8008f511, 0x0)
+syz_emit_vhci(&(0x7f0000000700)=@HCI_EVENT_PKT={0x4, @hci_ev_cmd_complete={{0xe, 0xc}, @hci_rp_read_local_features={{0xaa}, {0x0, "8fe580bd74a83b1a"}}}}, 0xf)
+syz_init_net_socket$bt_sco(0x1f, 0x5, 0x2)
+getsockopt(0xffffffffffffffff, 0xffff, 0x0, 0x0, 0x0)
+r1 = syz_init_net_socket$bt_sco(0x1f, 0x5, 0x2)
+connect$bt_sco(r1, &(0x7f0000000140), 0x8)
+syz_emit_vhci(&(0x7f0000000440)=ANY=[@ANYBLOB="04030b05c80000000000000001061d753c27cf208f8301f0239177c9d2e4e1218b70007cd07fdfa75de08037e36bae89db6c0d5e16b394793ac081f2952535"], 0xe)
+ioctl$sock_SIOCGIFVLAN_SET_VLAN_NAME_TYPE_CMD(0xffffffffffffffff, 0x8982, 0x0)
+ioctl$sock_SIOCSIFVLAN_DEL_VLAN_CMD(0xffffffffffffffff, 0x8983, 0x0)

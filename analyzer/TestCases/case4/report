@@ -1,0 +1,36 @@
+random: sshd: uninitialized urandom read (32 bytes read)
+random: sshd: uninitialized urandom read (32 bytes read)
+random: sshd: uninitialized urandom read (32 bytes read)
+random: sshd: uninitialized urandom read (32 bytes read)
+==================================================================
+BUG: KASAN: use-after-free in do_general_protection+0x2ac/0x2f0 arch/x86/kernel/traps.c:538
+Read of size 8 at addr ffff8801d7187398 by task syz-executor171/4544
+
+CPU: 0 PID: 4544 Comm: syz-executor171 Not tainted 4.17.0-rc6+ #67
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+Call Trace:
+
+The buggy address belongs to the page:
+page:ffffea00075c61c0 count:0 mapcount:0 mapping:0000000000000000 index:0x0
+flags: 0x2fffc0000000000()
+raw: 02fffc0000000000 0000000000000000 0000000000000000 00000000ffffffff
+raw: 0000000000000000 ffffea00075c0101 0000000000000000 0000000000000000
+page dumped because: kasan: bad access detected
+
+Memory state around the buggy address:
+ ffff8801d7187280: 00 00 ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+ ffff8801d7187300: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+>ffff8801d7187380: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+                            ^
+ ffff8801d7187400: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+ ffff8801d7187480: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
+==================================================================
+Kernel panic - not syncing: panic_on_warn set ...
+
+CPU: 0 PID: 4544 Comm: syz-executor171 Tainted: G    B             4.17.0-rc6+ #67
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+Call Trace:
+Dumping ftrace buffer:
+   (ftrace buffer empty)
+Kernel Offset: disabled
+Rebooting in 86400 seconds..
