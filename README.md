@@ -1,18 +1,12 @@
----
-title: (论文复现)GREBE-Unveiling Exploitation Potential for Linux Kernel Bugs
-author: Shaw
-categories: Paper
-tags: ["Vulnerability" , "AEG" ]
-
----
-
 # (论文复现)GREBE: Unveiling Exploitation Potential for Linux Kernel Bugs
 
 源码：[Markakd/GREBE (github.com)](https://github.com/Markakd/GREBE)
 
+<!--more-->
+
 # 1. Analysis
 
-## 1.1 Critical Structure Identification
+## 1.1 关键内核结构确定
 
 ### 1.1.1 **report来源：**
 
@@ -140,9 +134,7 @@ sudo make -j$(nproc) && make install
 
 ​	编译安装完带有特定补丁的LLVM，接下来就需要使用其来编译Linux内核源码。
 
-​	以[KASAN: slab-use-after-free Read in hfsplus_read_wrapper](https://syzkaller.appspot.com/bug?extid=4b52080e97cde107939d)为例，其附带的.config文件中详细的说明了漏洞的内核版本、config编译选项等信息：
-
-<img src="https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230531202020.png" style="zoom: 67%;" />
+​	以[KASAN: slab-use-after-free Read in hfsplus_read_wrapper](https://syzkaller.appspot.com/bug?extid=4b52080e97cde107939d)为例，其附带的.config文件中详细的说明了漏洞的内核版本、config编译选项等信息。
 
 ​	在[kernel/git/torvalds/linux.git - Linux kernel source tree](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/refs/tags)处下载对应版本的内核源码，解压后先安装编译所需的包：
 
@@ -168,7 +160,7 @@ python run_analyze.py ./case
 
 ​	注意：
 
->1. **编译analyzer与源码的LLVM一定要是相同版本的；**
+>1. **编译analyzer与源码的LLVM一定要相同版本；**
 >
 >2. **作者给出的LLVM-10是可以成功运行的，但是存在的问题如下：**
 >
@@ -188,12 +180,12 @@ python run_analyze.py ./case
 >
 >   d. 按次序运行`get_cg.py`、`get_kernel.py`和`run_analyze.py`，其参数为case序号，例如：
 >
->   ```bash
->   #分析/analyzer/Testcases/case7
->   python get_cg.py 7
->   python get_kernel.py 7
->   python run_analyze.py 7
->   ```
+>  ```bash
+>  #分析/analyzer/Testcases/case7
+>  python get_cg.py 7
+>  python get_kernel.py 7
+>  python run_analyze.py 7
+>  ```
 
 
 
@@ -204,6 +196,125 @@ python run_analyze.py ./case
 
 
 # 2. Fuzzing
+
+## 2.1 编译GCC
+
+​	使用作者提供的gcc-9.3.0来编译内核，首先进入其文件夹中编译GCC：
+
+```bash
+./contrib/download_prerequisites
+mkdir gcc-bin
+export INSTALLDIR=`pwd`/gcc-bin
+mkdir gcc-build
+cd gcc-build
+../configure --prefix=$INSTALLDIR --enable-languages=c,c++
+make -j`nproc` && make install
+```
+
+​	
+
+## 2.2 使用GCC编译内核
+
+​	在内核代码中运行：
+
+```bash
+export OBJ_FILE="/home/wx/Shaw/GREBE/analyzer/TestCases/case7/sts.txt"
+make CC="/home/wx/Shaw/GREBE/gcc-9.3.0/gcc-bin/bin/gcc" -j`nproc`
+```
+
+​	注意，内核的.config文件标志了其编译所需的最低版本，故不论是用clang编译还是gcc都需要符合对应版本。
+
+
+
+## 2.3 编译Fuzzer
+
+​	GREBE的Fuzzer是syzkaller的改版，其使用方法与syzkaller基本相同。根据syzkaller官方给出的方法编译，这里集成为/fuzzer/compile_fuzzer.py：
+
+```python
+#Author: xiao wu
+#Time: 2023.6.16
+#Functionality:
+#   Complie the modified syzkaller
+
+import sys
+import os
+assert ('linux' in sys.platform)
+
+GO_DIR = "/home/wx/Shaw/go"
+FUZZ_DIR = "/home/wx/Shaw/GREBE/fuzzer"
+
+os.environ["PATH"] += GO_DIR+"/bin"
+os.chdir(FUZZ_DIR)
+os.system("make")
+```
+
+​	这里需要在脚本中指定Go语言环境以及fuzzer的位置，Go的版本需要大于等于1.11。编译好的fuzzer位于/fuzzer/bin中。
+
+## 2.4 测试QEMU
+
+​	syz-manager需要通过ssh来与ssh-fuzzer通信，后者运行在QEMU中，故在运行syzkaller之前，需要手动测试QEMU连通性：
+
+```bash
+qemu-system-x86_64 \
+  -m 2G \
+  -smp 2 \
+  -kernel $KERNEL/arch/x86/boot/bzImage \
+  -append "console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0" \
+  -drive file=$IMAGE/bullseye.img,format=raw \
+  -net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
+  -net nic,model=e1000 \
+  -enable-kvm \
+  -nographic \
+  -pidfile vm.pid \
+  2>&1 | tee vm.log
+```
+
+​	注意，QEMU需要当前系统支持KVM虚拟化，如果是虚拟机可以直接查找对应处理器设置，如果是物理机需要在BIOS中开启。
+
+​	成功开启QEMU后另开一个bash，用ssh测试其连通性：
+
+```bash
+ssh -i $IMAGE/bullseye.id_rsa -p 10021 -o "StrictHostKeyChecking no" root@localhost
+```
+
+​	如果成果连通则说明QEMU通信部分没有问题，具体配置过程以及相关可能的问题可见：[(技术积累)Syzkaller环境配置 | Shaw (shawdox.github.io)](https://shawdox.github.io/2023/06/11/[技术积累]Syzkaller环境配置/)
+
+![](https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230616155831.png)
+
+​	
+
+## 2.5 运行fuzzer	
+
+​	直接使用/fuzzer/scripts/run_fuzzer.py脚本即可运行fuzzer，其会自动定位case文件夹并创建对应的config文件，运行syz-manager:
+
+```bash
+python run_fuzzer.py [case_number]
+#python run_fuzzer.py 8
+```
+
+​	下面是run_fuzzer.py的运行逻辑：
+
+ 1. 首先在对应的case文件夹下创建其config文件：
+
+    <img src="https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230624193501.png" style="zoom:50%;" />
+
+    2. 然后将config文件复制到workdir（如上图）中：
+
+<img src="https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230624192531.png" style="zoom: 67%;" />
+
+​	如上图fuzzer源码所示，注意到poc是默认位于workdir中的，**<u>故在使用命令时仅传入poc文件名称即可</u>**（此次复现中，poc.txt默认位于对应的case文件夹中，这里run_fuzzer.py脚本会在运行syz-manager前将对应的poc.txt复制过来）。
+
+	3. 运行syz-manager:
+
+```bash
+syz-manager -config /home/wx/Shaw/GREBE/analyzer/TestCases/case8/syzconfig.cfg --auxiliary poc.txt
+```
+
+​	再次注意，由于fuzzer源码限制，使用`--auxiliary`标志传入poc.txt只能传入该名称，并且poc.txt文件应该位于workdir文件夹下。
+
+​	运行即可得到对应结果：
+
+![](https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230624193915.png)
 
 
 
@@ -236,7 +347,7 @@ python run_analyze.py ./case
 
   查看错误报告发现是LLVM的BasicBlock没找到对应的子数据结构`hasNPredecessorsOrMore`，首先在LLVM官网查找对应数据结构定义：
 
-  <img src="https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230413144329.png" style="zoom: 33%;" />
+  <img src="https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230413144329.png" style="zoom: 25%;" />
 
   ​	可以看到在`BasicBlock.cpp`的319行有该数据结构的定义，查找本机上下载的llvm源码：
 
@@ -246,9 +357,7 @@ python run_analyze.py ./case
 
   <img src="https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230413144554.png" style="zoom:50%;" />
 
-  ​    阅读报错信息，发现编译时自动搜索到了以前安装的llvm-6.0旧版本，手动更改路径，上述问题解决，但是发现仍旧报错很多：
-
-  <img src="https://shaw-typora.oss-cn-beijing.aliyuncs.com/20230413211802.png" style="zoom:67%;" />
+  ​    阅读报错信息，发现编译时自动搜索到了以前安装的llvm-6.0旧版本，手动更改路径，上述问题解决，但是发现仍旧报错。
 
   ​	在llvm的github项目中找到了一样错误：[Build failure when targeting LLVM 11.0 · Issue #87 · google/autofdo (github.com)](https://github.com/google/autofdo/issues/87)。**<u>可以基本确定这是LLVM-11的问题，换回LLVM-10版本即可解决</u>**。
 
@@ -300,6 +409,12 @@ sudo apt-get install zlib1g zlib1g-dev
 
   ![](https://shaw-typora.oss-cn-beijing.aliyuncs.com/image-20230607224055657.png)
 
+- **问题7：无法使用py脚本（在其中使用export）改变环境变量**
+
+  **解决方法：**
+
+  [How to use export with Python on Linux - Stack Overflow](https://stackoverflow.com/questions/1506010/how-to-use-export-with-python-on-linux)
+
 ## Reference
 
 - GREBE:
@@ -309,4 +424,7 @@ sudo apt-get install zlib1g zlib1g-dev
   - [LLVM Debian/Ubuntu packages](https://apt.llvm.org/)
 - Kernel:
   - [How To Build Linux Kernel {Step-By-Step} | phoenixNAP KB](https://phoenixnap.com/kb/build-linux-kernel)
-  - 
+  - [syzkaller/docs/linux/setup_ubuntu-host_qemu-vm_x86-64-kernel.md at master · google/syzkaller · GitHub](https://github.com/google/syzkaller/blob/master/docs/linux/setup_ubuntu-host_qemu-vm_x86-64-kernel.md)
+  - [Setup: Ubuntu host, QEMU vm, x86-64 kernel (googlesource.com)](https://android.googlesource.com/platform/external/syzkaller/+/HEAD/docs/linux/setup_ubuntu-host_qemu-vm_x86-64-kernel.md)
+  - [(技术积累)Syzkaller环境配置 | Shaw (shawdox.github.io)](https://shawdox.github.io/2023/06/11/[技术积累]Syzkaller环境配置/)
+
